@@ -31,6 +31,16 @@ YAPlaning draait als normale Compose-stack in de VM waarop je Docker/Arcane draa
 
 De voorspelbare route is om de Git-repository op de VM te clonen, in die map `docker compose up -d --build` uit te voeren en vervolgens de container/stack in Arcane te beheren. Bij een update: `git pull` en opnieuw `docker compose up -d --build`. Maak vooraf een back-up. Als jouw Arcane-versie Git-stacks met een lokale buildcontext ondersteunt, kun je dezelfde repository en `docker-compose.yml` daarvoor gebruiken.
 
+## Projecten (versie 1.1)
+
+Iedere medewerker kan projecten aanmaken met een naam, omschrijving en kleur, en de eigen projecten bewerken. De superadmin kan alle projecten bewerken; lezers kunnen ze alleen bekijken. De maker van een project krijgt geen extra rechten op taken van anderen.
+
+Kies Projecten in de zijbalk voor kaarten met voortgang, betrokken medewerkers en ingeschatte openstaande uren (exclusief taken zonder ureninschatting). De voortgang telt alle taken mee, inclusief gearchiveerde taken. Klik op een project voor de gezamenlijke takenlijst, met persoonstabbladen en een optie om archieftaken te tonen. Een taak hoort bij maximaal één project; koppelen is optioneel.
+
+In het taakformulier kies je het project. De agenda gebruikt de projectkleur voor gekoppelde taken en de persoonskleur voor taken zonder project. Naam van de medewerker blijft zichtbaar bij de tijdblokken; projectnaam staat bij grotere blokken en in de tooltip. Met het projectfilter kun je agenda, takenlijst en archief beperken tot één project of taken zonder project.
+
+Bestaande databases worden bij opstarten automatisch uitgebreid; bestaande taken krijgen geen project. Nieuwe back-ups gebruiken formaat 2 en nemen ook de projecten en projecteigenaren mee. Back-ups van formaat 1 blijven herstelbaar. Herstel van een oude back-up vervangt ook alle huidige projecten, omdat die niet in die back-up bestaan. Database legen verwijdert eveneens projecten.
+
 ## Wat zit erin?
 
 - Weekagenda met persoonskleuren, weeknavigatie, vandaagknop, optionele weekends en instelbare werktijden.
@@ -60,11 +70,11 @@ Het Excelbestand en productiegegevens zijn **niet** opgenomen in deze broncode.
 
 ## Back-up en herstel
 
-Beheer → Gegevens & back-up → Back-up downloaden. Dit JSON-bestand bevat alle gebruikers (inclusief gezouten wachtwoordhashes), taken, archief, notities, instellingen en importhistorie. Bewaar het buiten de VM op een veilige plek. De download is een handmatige back-up; er is nog geen automatische offsite-back-up. Proxmox-VM-back-ups kunnen aanvullend gebruikt worden.
+Beheer → Gegevens & back-up → Back-up downloaden. Dit JSON-bestand bevat alle gebruikers (inclusief gezouten wachtwoordhashes), projecten, taken, archief, notities, instellingen en importhistorie. Bewaar het buiten de VM op een veilige plek. De download is een handmatige back-up; er is nog geen automatische offsite-back-up. Proxmox-VM-back-ups kunnen aanvullend gebruikt worden.
 
 Herstel vervangt de huidige inhoud en accounts. Maak eerst een back-up, kies het herstelbestand, controleer de aantallen, typ HERSTELLEN en geef je **huidige** beheerwachtwoord op. Log daarna in met een account uit de herstelde back-up. YAPlaning controleert het formaat, de versie, de velden, koppelingen en de aanwezigheid van een actieve superadmin voordat de transactie wordt uitgevoerd. Een mislukte validatie laat de bestaande data staan. Back-ups tot circa 15 MB worden via het venster ondersteund.
 
-Database legen verwijdert taken, archief, notities en importhistorie; gebruikers, instellingen en activiteitenlog blijven bestaan. Daarvoor zijn LEEGMAKEN en het beheerwachtwoord vereist.
+Database legen verwijdert projecten, taken, archief, notities en importhistorie; gebruikers, instellingen en activiteitenlog blijven bestaan. Daarvoor zijn LEEGMAKEN en het beheerwachtwoord vereist.
 
 ## Lokaal ontwikkelen
 
@@ -86,7 +96,7 @@ Open `http://127.0.0.1:3210`. Voor ontwikkelverversing start je `pnpm dev` en in
 
 TypeScript, React, Vite, Fastify en SQLite (de ingebouwde Node.js-driver). Cookies zijn HttpOnly en SameSite Strict, sessietokens staan alleen gehasht in de database. Wachtwoorden zijn gezouten met scrypt. De API controleert rechten, invoer en de herkomst van schrijfverzoeken. Loginverzoeken hebben een aparte limiet. React ontsnapt notitietekst; HTML in notities wordt niet uitgevoerd. Taken en notities hebben een wijzigingsversie om onbedoeld overschrijven bij gelijktijdig bewerken te voorkomen.
 
-De app is bedoeld voor één appcontainer met een lokaal Docker-volume. Deel het SQLite-bestand niet via NFS en start geen meerdere replicas op hetzelfde volume. Bewaar de volume-inhoud bij updates. Nieuwe tabellen worden bij starten automatisch aangemaakt; deze eerste versie heeft back-upformaat 1. Het dashboard vernieuwt bij eigen wijzigingen en bij opnieuw laden; live synchronisatie tussen browsers is nog niet ingebouwd. De agenda toont tijden in de lokale browsertijdzone; voor jullie team is Europe/Amsterdam voorzien.
+De app is bedoeld voor één appcontainer met een lokaal Docker-volume. Deel het SQLite-bestand niet via NFS en start geen meerdere replicas op hetzelfde volume. Bewaar de volume-inhoud bij updates. Nieuwe tabellen worden bij starten automatisch aangemaakt; nieuwe back-ups gebruiken formaat 2; herstel ondersteunt formaat 1 en 2. Het dashboard vernieuwt bij eigen wijzigingen en bij opnieuw laden; live synchronisatie tussen browsers is nog niet ingebouwd. De agenda toont tijden in de lokale browsertijdzone; voor jullie team is Europe/Amsterdam voorzien.
 
 ## GitHub
 
@@ -101,3 +111,24 @@ docker compose up -d --build
 ```
 
 `data/`, `.env`, `node_modules/` en buildbestanden staan in `.gitignore`. Voeg geen persoonlijke Excelbestanden of back-ups toe. Testgegevens en demoaccounts zijn niet onderdeel van de repository.
+
+## Starten en bijwerken met docker run
+
+Als alternatief voor Compose kun je vanuit de repository deze opdrachten gebruiken:
+
+```sh
+docker build -t yaplaning:latest .
+docker run -d --name yaplaning --restart unless-stopped --init -p 3210:3210 -e TZ=Europe/Amsterdam -v yaplaning_data:/app/data yaplaning:latest
+```
+
+Een bestaande installatie bijwerken: maak eerst via beheer een back-up, haal de wijzigingen op en vervang de container met hetzelfde volume:
+
+```sh
+git pull
+docker build -t yaplaning:latest .
+docker stop yaplaning
+docker rm yaplaning
+docker run -d --name yaplaning --restart unless-stopped --init -p 3210:3210 -e TZ=Europe/Amsterdam -v yaplaning_data:/app/data yaplaning:latest
+```
+
+Gebruik dezelfde poort, omgevingsvariabelen en volumenaam als je huidige installatie wanneer die afwijken van dit voorbeeld. Het volume blijft bij het verwijderen van de container bestaan. Bestaande taken en accounts blijven zo behouden. Start je de installatie met Compose, blijf dan Compose gebruiken en voer na `git pull` opnieuw `docker compose up -d --build` uit.

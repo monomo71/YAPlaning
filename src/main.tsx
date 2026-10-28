@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  FolderKanban,
   CalendarDays,
   LayoutDashboard,
   ListTodo,
@@ -48,6 +49,7 @@ import {
   initials,
 } from "./types";
 import "./style.css";
+import { Projects } from "./projects";
 
 function Modal({
   title,
@@ -145,6 +147,7 @@ function App() {
     [data, setData] = useState<Data | null>(null),
     [view, setView] = useState("agenda"),
     [selected, setSelected] = useState("all"),
+    [projectFilter, setProjectFilter] = useState("all"),
     [search, setSearch] = useState(""),
     [task, setTask] = useState<Partial<Task> | null>(null),
     [note, setNote] = useState<Partial<Note> | null>(null),
@@ -197,10 +200,18 @@ function App() {
   const visible = data.tasks.filter(
     (t) =>
       (selected === "all" || t.ownerId === selected) &&
+      (projectFilter === "all" ||
+        (projectFilter === "none"
+          ? !t.projectId
+          : t.projectId === projectFilter)) &&
       (!search ||
-        [t.title, t.notes, t.requester, byId(t.ownerId)?.name].some((s) =>
-          s?.toLowerCase().includes(search.toLowerCase()),
-        )),
+        [
+          t.title,
+          t.notes,
+          t.requester,
+          byId(t.ownerId)?.name,
+          data.projects.find((p) => p.id === t.projectId)?.name,
+        ].some((s) => s?.toLowerCase().includes(search.toLowerCase()))),
   );
   const newTask = (values: Partial<Task> = {}) =>
     setTask({
@@ -209,6 +220,9 @@ function App() {
           ? selected
           : people.find((u) => u.id === me.id)?.id || people[0]?.id
         : me.id,
+      projectId: data.projects.some((p) => p.id === projectFilter)
+        ? projectFilter
+        : null,
       title: "",
       term: "",
       plannedDate: null,
@@ -261,6 +275,7 @@ function App() {
             ["dashboard", "Overzicht", LayoutDashboard],
             ["agenda", "Weekagenda", CalendarDays],
             ["taken", "Alle taken", ListTodo],
+            ["projecten", "Projecten", FolderKanban],
             ["archief", "Archief", Archive],
           ].map(([id, label, Icon]: any) => (
             <button
@@ -379,6 +394,7 @@ function App() {
                   dashboard: "Overzicht",
                   agenda: "Weekagenda",
                   taken: "Alle taken",
+                  projecten: "Projecten",
                   archief: "Archief",
                   admin: "Beheer & instellingen",
                 }[view]
@@ -408,6 +424,7 @@ function App() {
                     dashboard: `Goedendag, ${me.name.split(" ")[0]}`,
                     agenda: "Jouw week. Helder in beeld.",
                     taken: "Van idee naar afgewerkt.",
+                    projecten: "Samen naar hetzelfde doel.",
                     archief: "Een plek voor afgerond werk.",
                     admin: "Alles goed geregeld.",
                   }[view]
@@ -422,6 +439,8 @@ function App() {
                       "Plan met aandacht. Houd overzicht. Maak samen vooruitgang.",
                     taken:
                       "Alle taken van het team, met de details die ertoe doen.",
+                    projecten:
+                      "Eén project, meerdere mensen. Alle voortgang helder bij elkaar.",
                     archief:
                       "Zoek terug, bekijk details of haal een taak weer naar je planning.",
                     admin:
@@ -441,7 +460,21 @@ function App() {
               </button>
             )}
           </div>
-          {view !== "admin" && <Stats data={data} selected={selected} />}
+          {view !== "admin" && (
+            <Stats
+              data={{
+                ...data,
+                tasks: data.tasks.filter(
+                  (t) =>
+                    projectFilter === "all" ||
+                    (projectFilter === "none"
+                      ? !t.projectId
+                      : t.projectId === projectFilter),
+                ),
+              }}
+              selected={selected}
+            />
+          )}
           {view !== "admin" && (
             <div className="filterbar">
               <div className="people-filter">
@@ -467,6 +500,22 @@ function App() {
                   ))}
                 </span>
               </div>
+              <label className="project-filter">
+                <FolderKanban size={16} />
+                <select
+                  aria-label="Filter op project"
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                >
+                  <option value="all">Alle projecten</option>
+                  <option value="none">Zonder project</option>
+                  {data.projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="search">
                 <Search size={16} />
                 <input
@@ -485,6 +534,34 @@ function App() {
                 )}
               </label>
             </div>
+          )}
+          {view === "projecten" && (
+            <Projects
+              data={data}
+              selected={projectFilter}
+              onSelect={(id) => {
+                setProjectFilter(id);
+                setSelected("all");
+                setSearch("");
+              }}
+              search={search}
+              onDone={async () => {
+                await refresh();
+                setToast("Project opgeslagen");
+              }}
+              onNew={write && (admin || me.plannable) ? newTask : undefined}
+              renderTasks={(tasks) => (
+                <TaskTable
+                  data={data}
+                  tasks={tasks.filter((t) =>
+                    visible.some((v) => v.id === t.id),
+                  )}
+                  onTask={setTask}
+                  selected={selected}
+                  onSelect={setSelected}
+                />
+              )}
+            />
           )}
           {view === "agenda" && (
             <Calendar
@@ -746,6 +823,13 @@ function Stats({ data, selected }: { data: Data; selected: string }) {
     </div>
   );
 }
+function taskColor(data: Data, t: Task) {
+  return (
+    data.projects.find((p) => p.id === t.projectId)?.color ||
+    data.users.find((u) => u.id === t.ownerId)?.color ||
+    "#6366e8"
+  );
+}
 function Calendar({
   data,
   tasks,
@@ -860,11 +944,8 @@ function Calendar({
                         onClick={() => onTask(t)}
                         className="all-day-event"
                         style={{
-                          color: data.users.find((u) => u.id === t.ownerId)
-                            ?.color,
-                          background:
-                            (data.users.find((u) => u.id === t.ownerId)
-                              ?.color || "#6366e8") + "13",
+                          color: taskColor(data, t),
+                          background: taskColor(data, t) + "13",
                         }}
                         title={t.title}
                       >
@@ -933,9 +1014,7 @@ function Calendar({
                       group.map((t, i) => {
                         const [h, m] = t.startTime!.split(":").map(Number),
                           top = (h + m / 60 - start) * 66;
-                        const color =
-                          data.users.find((u) => u.id === t.ownerId)?.color ||
-                          "#6366e8";
+                        const color = taskColor(data, t);
                         const height = Math.max(
                           32,
                           Math.min(
@@ -960,13 +1039,22 @@ function Calendar({
                               borderLeftColor: color,
                               color,
                             }}
-                            title={`${t.title} · ${t.startTime} · ${t.status}`}
+                            title={`${t.title} · ${data.projects.find((p) => p.id === t.projectId)?.name || "Zonder project"} · ${data.users.find((u) => u.id === t.ownerId)?.name} · ${t.startTime} · ${t.status}`}
                           >
                             <span>
                               {t.startTime}
                               {t.priority && ` · P${t.priority}`}
                             </span>
                             <strong>{t.title}</strong>
+                            {height > 90 && t.projectId && (
+                              <small>
+                                {
+                                  data.projects.find(
+                                    (p) => p.id === t.projectId,
+                                  )?.name
+                                }
+                              </small>
+                            )}
                             {height > 58 && (
                               <small>
                                 {
@@ -1117,7 +1205,9 @@ function TaskTable({
       const value = (t: Task) =>
         sort === "ownerId"
           ? data.users.find((u) => u.id === t.ownerId)?.name || ""
-          : (t as any)[sort];
+          : sort === "projectId"
+            ? data.projects.find((p) => p.id === t.projectId)?.name || ""
+            : (t as any)[sort];
       const av = value(a),
         bv = value(b);
       if (av === null || av === "") return bv === null || bv === "" ? 0 : 1;
@@ -1131,6 +1221,7 @@ function TaskTable({
   const cols = [
     ["title", "Taakomschrijving"],
     ["ownerId", "Medewerker"],
+    ["projectId", "Project"],
     ["plannedDate", "Plandatum"],
     ["term", "Termijn"],
     ["deadline", "Deadline"],
@@ -1212,6 +1303,19 @@ function TaskTable({
                     />
                     {data.users.find((u) => u.id === t.ownerId)?.name}
                   </span>
+                </td>
+                <td>
+                  {(() => {
+                    const p = data.projects.find((p) => p.id === t.projectId);
+                    return p ? (
+                      <span className="project-label">
+                        <i style={{ background: p.color }} />
+                        {p.name}
+                      </span>
+                    ) : (
+                      "—"
+                    );
+                  })()}
                 </td>
                 <td>
                   {dateLabel(t.plannedDate)}
@@ -1461,6 +1565,20 @@ function TaskModal({
               placeholder="Wat wil je gedaan krijgen?"
               onChange={(e) => set("title", e.target.value)}
             />
+          </label>
+          <label>
+            Project <span className="optional">optioneel</span>
+            <select
+              value={form.projectId || ""}
+              onChange={(e) => set("projectId", e.target.value || null)}
+            >
+              <option value="">Zonder project</option>
+              {data.projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="form-grid">
             <label>
@@ -2052,8 +2170,8 @@ function Admin({
             </span>
             <h2>Een kopie voor de zekerheid</h2>
             <p>
-              Download een volledige back-up van taken, archief, notities,
-              accounts en instellingen.
+              Download een volledige back-up van projecten, taken, archief,
+              notities, accounts en instellingen.
             </p>
             <p className="info">
               <Lock size={15} />
@@ -2089,7 +2207,7 @@ function Admin({
                     if (f.size > 15 * 1024 * 1024)
                       throw new Error("Back-up mag maximaal 15 MB zijn");
                     const b = JSON.parse(await f.text());
-                    if (b.format !== "YAPlaning" || b.version !== 1)
+                    if (b.format !== "YAPlaning" || ![1, 2].includes(b.version))
                       throw new Error("Geen ondersteunde YAPlaning-back-up");
                     setBackup(b);
                     setDanger("restore");
@@ -2105,9 +2223,9 @@ function Admin({
             <div>
               <h2>Opnieuw beginnen</h2>
               <p>
-                Wis alle taken, gearchiveerde taken, dashboardnotities en
-                importhistorie. Accounts, instellingen en het activiteitenlog
-                blijven behouden.
+                Wis alle projecten, taken, gearchiveerde taken,
+                dashboardnotities en importhistorie. Accounts, instellingen en
+                het activiteitenlog blijven behouden.
               </p>
               <strong>
                 Maak eerst een back-up. Wissen kan niet ongedaan worden gemaakt.
@@ -2126,7 +2244,7 @@ function Admin({
       {tab === "audit" && (
         <section className="panel">
           <div className="section-title">
-            <h2>Activiteiten van beheerders</h2>
+            <h2>Activiteiten van de werkplek</h2>
             <span className="muted">Laatste 100 acties</span>
           </div>
           {audit.map((a) => (
@@ -2522,7 +2640,7 @@ function DangerModal({
         <AlertTriangle size={22} />
         <p>
           {kind === "clear"
-            ? "Alle taken, het archief, notities en importhistorie worden gewist. Accounts en instellingen blijven behouden."
+            ? "Alle projecten, taken, het archief, notities en importhistorie worden gewist. Accounts en instellingen blijven behouden."
             : "Alle huidige gegevens, accounts en instellingen worden vervangen door de back-up. Je wordt daarna uitgelogd."}
         </p>
       </div>

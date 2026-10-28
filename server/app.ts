@@ -14,6 +14,7 @@ import { mkdirSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { z } from "zod";
 import {
+  projectSchema,
   taskSchema,
   userSchema,
   noteSchema,
@@ -55,6 +56,7 @@ export async function createApp(
   const db = new DatabaseSync(dbPath);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
  CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,role TEXT NOT NULL,plannable INTEGER NOT NULL,color TEXT NOT NULL,passwordHash TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1);
+ CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,data TEXT NOT NULL,updatedAt TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,ownerId TEXT NOT NULL REFERENCES users(id),data TEXT NOT NULL,updatedAt TEXT NOT NULL);
  CREATE INDEX IF NOT EXISTS tasks_owner ON tasks(ownerId);
  CREATE TABLE IF NOT EXISTS notes(id TEXT PRIMARY KEY,authorId TEXT NOT NULL REFERENCES users(id),data TEXT NOT NULL,updatedAt TEXT NOT NULL);
@@ -190,18 +192,16 @@ export async function createApp(
   });
   app.setErrorHandler((e: any, _r, reply) => {
     const status = e instanceof z.ZodError ? 400 : e.statusCode || 500;
-    reply
-      .code(status)
-      .send({
-        error:
-          e instanceof z.ZodError
-            ? e.issues
-                .map((x: any) => `${x.path.join(".")}: ${x.message}`)
-                .join("; ")
-            : status >= 500
-              ? "Er ging iets mis op de server. Controleer het bestand of probeer opnieuw."
-              : e.message,
-      });
+    reply.code(status).send({
+      error:
+        e instanceof z.ZodError
+          ? e.issues
+              .map((x: any) => `${x.path.join(".")}: ${x.message}`)
+              .join("; ")
+          : status >= 500
+            ? "Er ging iets mis op de server. Controleer het bestand of probeer opnieuw."
+            : e.message,
+    });
     if (status >= 500) app.log.error(e);
   });
   app.get("/api/health", async () => ({ ok: true }));
@@ -279,8 +279,14 @@ export async function createApp(
   app.get("/api/data", async (r) => ({
     user: publicUser(r.account),
     users: q("SELECT * FROM users ORDER BY name").map(publicUser),
+    projects: q("SELECT * FROM projects").map((p) => ({
+      id: p.id,
+      ...JSON.parse(p.data),
+      updatedAt: p.updatedAt,
+    })),
     tasks: q("SELECT * FROM tasks").map((t) => ({
       id: t.id,
+      projectId: null,
       ...JSON.parse(t.data),
       updatedAt: t.updatedAt,
     })),
@@ -294,12 +300,65 @@ export async function createApp(
       .filter((n) => n.shared || n.authorId === r.account.id),
     settings: JSON.parse(one("SELECT data FROM settings WHERE id=1").data),
   }));
+  const validProject = (id: string | null) => {
+    if (id && !one("SELECT id FROM projects WHERE id=?", id))
+      fail(400, "Project niet gevonden");
+  };
+  app.post("/api/projects", async (r) => {
+    writer(r);
+    const p = { ...projectSchema.parse(r.body), creatorId: r.account.id };
+    if (
+      q("SELECT data FROM projects").some(
+        (x) => JSON.parse(x.data).name.toLowerCase() === p.name.toLowerCase(),
+      )
+    )
+      fail(409, "Er bestaat al een project met deze naam");
+    const id = randomUUID(),
+      updatedAt = now();
+    run(
+      "INSERT INTO projects VALUES (?,?,?)",
+      id,
+      JSON.stringify(p),
+      updatedAt,
+    );
+    audit(r, "Project aangemaakt");
+    return { id, ...p, updatedAt };
+  });
+  app.put<{ Params: { id: string } }>("/api/projects/:id", async (r) => {
+    writer(r);
+    const old = one("SELECT * FROM projects WHERE id=?", r.params.id);
+    if (!old) fail(404, "Project niet gevonden");
+    const creatorId = JSON.parse(old.data).creatorId || null;
+    if (r.account.role !== "superadmin" && creatorId !== r.account.id)
+      fail(403, "Je kunt alleen je eigen projecten bewerken");
+    if ((r.body as any).updatedAt !== old.updatedAt)
+      fail(409, "Dit project is inmiddels gewijzigd. Open het opnieuw.");
+    const p = { ...projectSchema.parse(r.body), creatorId };
+    if (
+      q("SELECT * FROM projects WHERE id<>?", old.id).some(
+        (x) => JSON.parse(x.data).name.toLowerCase() === p.name.toLowerCase(),
+      )
+    )
+      fail(409, "Er bestaat al een project met deze naam");
+    const updatedAt = new Date(
+      Math.max(Date.now(), Date.parse(old.updatedAt) + 1),
+    ).toISOString();
+    run(
+      "UPDATE projects SET data=?,updatedAt=? WHERE id=?",
+      JSON.stringify(p),
+      updatedAt,
+      old.id,
+    );
+    audit(r, "Project gewijzigd");
+    return { id: old.id, ...p, updatedAt };
+  });
   app.post("/api/tasks", async (r) => {
     writer(r);
     const t = taskSchema.parse(r.body);
     if (r.account.role !== "superadmin" && t.ownerId !== r.account.id)
       fail(403, "Je kunt alleen taken voor jezelf aanmaken");
     validOwner(t.ownerId);
+    validProject(t.projectId);
     const id = randomUUID(),
       updatedAt = now();
     run(
@@ -324,6 +383,7 @@ export async function createApp(
     if (r.account.role !== "superadmin" && t.ownerId !== r.account.id)
       fail(403, "Alleen de superadmin kan taken toewijzen aan een ander");
     validOwner(t.ownerId);
+    validProject(t.projectId);
     const updatedAt = new Date(
       Math.max(Date.now(), Date.parse(old.updatedAt) + 1),
     ).toISOString();
@@ -495,7 +555,7 @@ export async function createApp(
         fail(409, "Dit bestand is al geïmporteerd voor deze medewerker");
       const signatures = new Set(
         q("SELECT data FROM tasks WHERE ownerId=?", input.ownerId).map((t) =>
-          JSON.stringify(JSON.parse(t.data)),
+          JSON.stringify(taskSchema.parse(JSON.parse(t.data))),
         ),
       );
       for (const row of result.rows) {
@@ -527,7 +587,8 @@ export async function createApp(
     audit(r, "Back-up gedownload");
     const data = transaction(() => ({
       format: "YAPlaning",
-      version: 1,
+      version: 2,
+      projects: q("SELECT * FROM projects"),
       createdAt: now(),
       users: q("SELECT * FROM users"),
       tasks: q("SELECT * FROM tasks"),
@@ -544,7 +605,17 @@ export async function createApp(
   });
   const backupSchema = z.object({
     format: z.literal("YAPlaning"),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
+    projects: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          data: z.string(),
+          updatedAt: z.iso.datetime(),
+        }),
+      )
+      .max(10000)
+      .optional(),
     users: z
       .array(
         z.object({
@@ -611,6 +682,15 @@ export async function createApp(
     if (!checkPassword(input.password, r.account.passwordHash))
       fail(403, "Je huidige wachtwoord is onjuist");
     const b = backupSchema.parse(input.backup);
+    if (b.version === 2 && !b.projects)
+      fail(400, "Projecten ontbreken in deze back-up");
+    const projects = (b.projects || []).map((p) => ({
+      ...p,
+      data: JSON.stringify(projectSchema.parse(JSON.parse(p.data))),
+    }));
+    const projectIds = new Set(projects.map((p) => p.id));
+    if (projectIds.size !== projects.length)
+      fail(400, "Dubbele projecten in back-up");
     const ids = new Set(b.users.map((u) => u.id));
     if (
       ids.size !== b.users.length ||
@@ -621,8 +701,17 @@ export async function createApp(
       fail(400, "Back-up mist een actieve superadmin");
     if (b.users.some((u) => u.role === "reader" && u.plannable))
       fail(400, "Ongeldige lezer in back-up");
+    if (
+      projects.some((p) => {
+        const id = JSON.parse(p.data).creatorId;
+        return id && !ids.has(id);
+      })
+    )
+      fail(400, "Ongeldige projecteigenaar in back-up");
     const tasks = b.tasks.map((t) => {
       const data = taskSchema.parse(JSON.parse(t.data));
+      if (data.projectId && !projectIds.has(data.projectId))
+        fail(400, "Ongeldig project in back-up");
       if (!ids.has(t.ownerId) || data.ownerId !== t.ownerId)
         fail(400, "Ongeldige taakeigenaar in back-up");
       return { ...t, data: JSON.stringify(data) };
@@ -641,7 +730,7 @@ export async function createApp(
       fail(400, "Dubbele records in back-up");
     transaction(() => {
       db.exec(
-        "DELETE FROM sessions; DELETE FROM tasks; DELETE FROM notes; DELETE FROM users; DELETE FROM imports; DELETE FROM audit;",
+        "DELETE FROM sessions; DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM users; DELETE FROM imports; DELETE FROM audit;",
       );
       for (const u of b.users)
         run(
@@ -655,6 +744,8 @@ export async function createApp(
           u.passwordHash,
           u.active,
         );
+      for (const p of projects)
+        run("INSERT INTO projects VALUES (?,?,?)", p.id, p.data, p.updatedAt);
       for (const t of tasks)
         run(
           "INSERT INTO tasks VALUES (?,?,?,?)",
@@ -706,10 +797,12 @@ export async function createApp(
     if (!checkPassword(input.password, r.account.passwordHash))
       fail(403, "Je wachtwoord is onjuist");
     transaction(() => {
-      db.exec("DELETE FROM tasks; DELETE FROM notes; DELETE FROM imports;");
+      db.exec(
+        "DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM imports;",
+      );
       audit(
         r,
-        "Alle taken, notities en importhistorie gewist; accounts en instellingen behouden",
+        "Alle projecten, taken, notities en importhistorie gewist; accounts en instellingen behouden",
       );
     });
     return { ok: true };

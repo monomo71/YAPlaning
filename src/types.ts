@@ -14,9 +14,18 @@ export const statuses: Status[] = [
   "On Hold",
   "Afgewerkt",
 ];
+export type Project = {
+  creatorId: string | null;
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  updatedAt: string;
+};
 export type Task = {
   id: string;
   ownerId: string;
+  projectId: string | null;
   title: string;
   term: string;
   plannedDate: string | null;
@@ -49,6 +58,7 @@ export type Data = {
   user: User;
   users: User[];
   tasks: Task[];
+  projects: Project[];
   notes: Note[];
   settings: Settings;
 };
@@ -59,7 +69,10 @@ export async function api<T = any>(
 ): Promise<T> {
   const r = await fetch("/api" + path, {
     method,
-    headers: { "Content-Type": "application/json", "X-Yap-Request": "1" },
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      "X-Yap-Request": "1",
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await r.json();

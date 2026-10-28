@@ -12,6 +12,7 @@ export const taskSchema = z
   .object({
     title: z.string().trim().min(1).max(500),
     ownerId: z.string().min(1),
+    projectId: z.string().min(1).nullable().default(null),
     term: z.enum(["", "Adhoc", "Korte termijn", "Lange termijn"]).default(""),
     plannedDate: date.default(null),
     deadline: date.default(null),
@@ -49,6 +50,12 @@ export const userSchema = z
   .refine((u) => u.role !== "reader" || !u.plannable, {
     message: "Een lezer krijgt geen eigen planning",
   });
+export const projectSchema = z.object({
+  creatorId: z.string().min(1).nullable().default(null),
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(5000).default(""),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
 export const noteSchema = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().max(30000),
