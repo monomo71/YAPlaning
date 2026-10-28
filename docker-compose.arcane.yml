@@ -1,0 +1,33 @@
+# Plak deze volledige inhoud in een nieuw Arcane-project.
+# Kies Build & Deploy om GitHub op te halen, de image te bouwen en te starten.
+services:
+  yaplaning:
+    image: yaplaning:arcane
+    pull_policy: build
+    build:
+      context: https://github.com/monomo71/YAPlaning.git#main
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${APP_PORT:-3210}:3210"
+    environment:
+      TZ: Europe/Amsterdam
+      APP_ORIGIN: ${APP_ORIGIN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    volumes:
+      - yaplaning_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  yaplaning_data:
+    name: ${DATA_VOLUME:-yaplaning_data}

@@ -25,11 +25,34 @@ TRUST_PROXY=true
 
 De reverse proxy moet het verkeer naar poort 3210 sturen en forwarded headers zelf overschrijven. Laat de eerste installatie alleen door de beheerder uitvoeren: degene die het lege systeem als eerste opent kan het eerste beheeraccount aanmaken.
 
-## Arcane op Proxmox
+## Arcane op Proxmox: alleen Compose plakken
 
-YAPlaning draait als normale Compose-stack in de VM waarop je Docker/Arcane draait; Proxmox heeft geen app-specifieke instellingen nodig. Gebruik de volledige projectmap als buildcontext. Alleen de YAML plakken zonder de bronbestanden is niet voldoende, omdat Compose de image lokaal bouwt.
+Gebruik [`docker-compose.arcane.yml`](docker-compose.arcane.yml) als je de app volledig vanuit Arcane wilt installeren. Deze losse Compose-file verwijst met `build.context` direct naar de openbare GitHub-repository. Docker haalt de broncode van `main` op en bouwt de meegeleverde Dockerfile. Je hoeft geen repository op de VM te clonen en geen bestanden te uploaden. Er zijn geen GitHub-token of verplichte `.env`-instellingen nodig.
 
-De voorspelbare route is om de Git-repository op de VM te clonen, in die map `docker compose up -d --build` uit te voeren en vervolgens de container/stack in Arcane te beheren. Bij een update: `git pull` en opnieuw `docker compose up -d --build`. Maak vooraf een back-up. Als jouw Arcane-versie Git-stacks met een lokale buildcontext ondersteunt, kun je dezelfde repository en `docker-compose.yml` daarvoor gebruiken.
+1. Open Projects in Arcane en kies Create Project.
+2. Geef het project bijvoorbeeld de naam `yaplaning`.
+3. Plak de volledige inhoud van `docker-compose.arcane.yml` in de Compose-editor.
+4. Sla het project op en kies **Build & Deploy** op de projectpagina. Gebruik Local Docker als buildprovider.
+5. Open `http://IP-VAN-JE-VM:3210` en maak de eerste beheerder aan.
+
+De eerste build downloadt Node.js en de benodigde pakketten en voert de appbuild en tests uit. De server heeft hiervoor toegang nodig tot GitHub, de npm-registry en de containerregistry voor Node.js. De buildtijd is afhankelijk van de VM en de verbinding.
+
+**Bijwerken:** maak via beheer een back-up en kies in Arcane opnieuw **Build & Deploy**. Docker haalt de actuele `main`-broncode op en bouwt de image opnieuw; ongewijzigde bouwlagen kunnen uit de cache komen. `pull_policy: build` laat Compose de image bouwen in plaats van `yaplaning:arcane` op Docker Hub te zoeken. Er is geen achtergrondmonitor: nieuwe commits worden opgehaald wanneer je opnieuw bouwt. Een gewone containerrestart bouwt niet opnieuw.
+
+Optioneel kun je in Arcane onder Environment Configuration instellen:
+
+```dotenv
+APP_PORT=3210
+DATA_VOLUME=yaplaning_data
+# Bij HTTPS via een reverse proxy:
+# APP_ORIGIN=https://planning.jouwdomein.nl
+# COOKIE_SECURE=true
+# TRUST_PROXY=true
+```
+
+De database staat in het vaste volume `yaplaning_data`, onafhankelijk van de projectnaam. Gebruik bij het overzetten van een bestaande installatie bij `DATA_VOLUME` de **exacte bestaande volumenaam**, zodat je dezelfde database opent. De eerdere `docker run`-instructies gebruiken `yaplaning_data`; de standaard lokale Compose-file kan een projectprefix aan de volumenaam toevoegen. Controleer dat in Arcane onder Volumes of bij de mounts van de bestaande container. Laat bij een overstap slechts één YAPlaning-container tegelijk dit volume gebruiken, en behoud eventuele afwijkende poort- en HTTPS-instellingen. Een nieuw volume geeft een lege installatie; het oude volume blijft bestaan.
+
+Deze standalone configuratie gebruikt alleen een benoemd datavolume en een externe Git-buildcontext, dus geen relatieve bronmappen op de VM. De gewone `docker-compose.yml` blijft beschikbaar voor een lokaal geclonede repository. Arcane documenteert Build & Deploy voor projecten met `build:` onder [Image Builds](https://getarcane.app/docs/docker/image-builds). Docker documenteert Git-repositories als buildcontext onder [Compose Build](https://docs.docker.com/reference/compose-file/build/).
 
 ## Projecten (versie 1.1)
 

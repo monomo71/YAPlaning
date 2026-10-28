@@ -34,3 +34,9 @@ Uitgevoerd op 28 oktober 2026, op macOS met Node.js 24.22.1.
 - Scores worden meegenomen in back-upformaat 3; wissen, terugzetten en herstellen van een oudere back-up zonder scores zijn getest.
 
 - Browsercontrole: runner gestart en game-over met opgeslagen persoonlijk record gezien. Tetris gestart, bewogen, gedraaid, gepauzeerd, hervat en uitgespeeld tot game-over; het aparte Tetris-record is opgeslagen en getoond.
+
+## Arcane standalone Compose
+
+- `docker-compose.arcane.yml` gebruikt de openbare GitHub-repository op `main` als remote buildcontext en heeft geen lokale bronbestanden nodig.
+- YAML-parsing en validatie tegen het officiële Compose Specification JSON-schema (draft 2020-12) slagen. Poort, volume, omgevingsvariabelen en buildconfiguratie zijn gecontroleerd.
+- Docker/Arcane zelf is op deze ontwikkel-Mac niet beschikbaar; een echte build en deployment op de VM zijn nog niet uitgevoerd.
