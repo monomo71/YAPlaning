@@ -1,0 +1,28 @@
+services:
+  yaplaning:
+    build: .
+    image: yaplaning:local
+    container_name: yaplaning
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-3210}:3210"
+    environment:
+      TZ: Europe/Amsterdam
+      APP_ORIGIN: ${APP_ORIGIN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    volumes:
+      - yaplaning_data:/app/data
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  yaplaning_data:
