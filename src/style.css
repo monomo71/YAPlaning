@@ -2521,3 +2521,26 @@ progress::-webkit-progress-value {
     margin-top: 15px;
   }
 }
+
+.deletion-projects {
+  list-style: none;
+  padding: 0;
+  max-height: 250px;
+  overflow: auto;
+}
+.deletion-projects li {
+  border: 1px solid #eceef4;
+  border-radius: 8px;
+  padding: 13px;
+  margin: 9px 0;
+}
+.deletion-projects strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.deletion-projects span {
+  font-size: 11px;
+  color: #8a94a9;
+  line-height: 1.7;
+}

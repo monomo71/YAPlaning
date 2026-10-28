@@ -44,3 +44,9 @@ Uitgevoerd op 28 oktober 2026, op macOS met Node.js 24.22.1.
 ## Versie 1.2.1 — HTTP-client
 
 Een regressietest reproduceert HTTP 415 bij een lege octet-stream POST. De echte browserclient wordt vervolgens doorgelust naar de API met een gesimuleerde proxy; runner starten, Tetris starten en uitloggen moeten met expliciete JSON slagen. De image-tag, pakketversie, Docker-label en zichtbare voettekst dragen versie 1.2.1.
+
+## Gebruikers verwijderen (versie 1.3.0)
+
+Elf tests slagen, inclusief twee nieuwe integratietests voor het definitief verwijderen van een account. Getest zijn de eigen actieve en gearchiveerde taken, notities, spelrecords en inlogsessies; verwijderen van eigen/lege projecten; behoud en overdracht van gedeelde projecten; voorrang voor een actieve opvolger; behoud van andermans archieftaken en projecten; beheerrechten van de opvolger; weigeren van zelfverwijdering, verkeerde bevestiging en verkeerd wachtwoord; bescherming tegen gewijzigde gegevens sinds het voorbeeld; herstelbaarheid van een back-up na verwijderen.
+
+Browsercontrole: in Beheer → Gebruikers is het verwijdervoorbeeld geopend, aantallen en projectacties zijn weergegeven en de definitieve knop bleef uitgeschakeld zonder bevestiging en wachtwoord. Daarna is geannuleerd; in de demo zijn geen gebruikers verwijderd.

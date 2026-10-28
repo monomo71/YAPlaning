@@ -37,7 +37,7 @@ Gebruik [`docker-compose.arcane.yml`](docker-compose.arcane.yml) als je de app v
 
 De eerste build downloadt Node.js en de benodigde pakketten en voert de appbuild en tests uit. De server heeft hiervoor toegang nodig tot GitHub, de npm-registry en de containerregistry voor Node.js. De buildtijd is afhankelijk van de VM en de verbinding.
 
-**Bijwerken:** maak via beheer een back-up en kies in Arcane opnieuw **Build & Deploy**. Docker haalt de actuele `main`-broncode op en bouwt de image opnieuw; ongewijzigde bouwlagen kunnen uit de cache komen. `pull_policy: build` laat Compose de image bouwen in plaats van `yaplaning:1.2.1` op Docker Hub te zoeken. Er is geen achtergrondmonitor: nieuwe commits worden opgehaald wanneer je opnieuw bouwt. Een gewone containerrestart bouwt niet opnieuw.
+**Bijwerken:** maak via beheer een back-up en kies in Arcane opnieuw **Build & Deploy**. Docker haalt de actuele `main`-broncode op en bouwt de image opnieuw; ongewijzigde bouwlagen kunnen uit de cache komen. `pull_policy: build` laat Compose de image bouwen in plaats van `yaplaning:1.3.0` op Docker Hub te zoeken. Er is geen achtergrondmonitor: nieuwe commits worden opgehaald wanneer je opnieuw bouwt. Een gewone containerrestart bouwt niet opnieuw.
 
 Optioneel kun je in Arcane onder Environment Configuration instellen:
 
@@ -177,8 +177,24 @@ Runner: de drie puntjes in het kaartje onderaan de zijbalk. Tetris: het kleine r
 
 POST-verzoeken zonder expliciete inhoud sturen nu een leeg JSON-object met `Content-Type: application/json`. Dit voorkomt `Unsupported Media Type` bij het starten van beide games wanneer een proxy een ongetypeerde lege POST als octet-stream doorgeeft. Ook uitloggen gebruikt deze afhandeling.
 
-De Compose-files geven de lokale image de versie `yaplaning:1.2.1`. De geïnstalleerde app toont `v1.2.1` in de voettekst; `/api/health` vermeldt eveneens de versie.
+De Compose-files geven de lokale image de versie `yaplaning:1.3.0`. De geïnstalleerde app toont `v1.2.1` in de voettekst; `/api/health` vermeldt eveneens de versie.
 
-**Arcane bijwerken:** vervang in de bestaande Compose-file de `image:`-regel door `image: yaplaning:1.2.1` (of kopieer de nieuwe Compose-file met behoud van je eigen omgevingsvariabelen en datavolume). Kies daarna **Build & Deploy**. Ververs de browser, zo nodig met Ctrl+Shift+R of Cmd+Shift+R. De build haalt de nieuwste code van GitHub op.
+**Arcane bijwerken:** vervang in de bestaande Compose-file de `image:`-regel door `image: yaplaning:1.3.0` (of kopieer de nieuwe Compose-file met behoud van je eigen omgevingsvariabelen en datavolume). Kies daarna **Build & Deploy**. Ververs de browser, zo nodig met Ctrl+Shift+R of Cmd+Shift+R. De build haalt de nieuwste code van GitHub op.
 
 Dit is een lokaal gebouwde image, geen op Docker Hub of GHCR gepubliceerde image. Arcane's gewone registry-updatecontrole kan daarom geen nieuwe versie detecteren; gebruik Build & Deploy.
+
+## Gebruikers verwijderen (versie 1.3.0)
+
+Alleen een superadmin kan via Beheer → Gebruikers → Verwijderen een account definitief verwijderen. Het eigen ingelogde beheeraccount kan niet worden verwijderd. Uitschakelen blijft beschikbaar als je gegevens wilt behouden.
+
+Vooraf toont de app welke gegevens worden verwijderd: alle taken die aan die gebruiker zijn toegewezen (inclusief archief), diens privé- en gedeelde notities en diens spelrecords. Een taak wordt hier aan de huidige eigenaar gekoppeld; de app bewaart geen afzonderlijke historische maker van een taak. De inlogsessies en onafgeronde speelrondes worden ook verwijderd.
+
+Voor projecten waarvan de gebruiker eigenaar is, gelden deze regels:
+
+- Geen taken van andere personen: het project wordt verwijderd, ook als het leeg is.
+- Wel taken van andere personen: project en overige taken blijven behouden. Eigenaarschap gaat naar een overgebleven persoon met taken in dat project, bij voorkeur een actief account, op alfabetische volgorde. Ook gearchiveerde taken tellen mee. Als er alleen inactieve betrokkenen zijn, wordt een van hen eigenaar.
+- Projecten van andere eigenaren blijven bestaan; alleen de taken van de verwijderde gebruiker verdwijnen daaruit.
+
+De opvolger en alle aantallen staan in het voorbeeld. Als relevante gegevens tussentijds wijzigen, wordt verwijderen geweigerd totdat je het voorbeeld vernieuwt. Maak eerst een back-up; typ daarna VERWIJDEREN en geef je eigen beheerwachtwoord op. De wijziging gebeurt in één databasetransactie. De beheeractie wordt gelogd.
+
+In Arcane gebruik je `image: yaplaning:1.3.0` en daarna Build & Deploy, met behoud van je eigen domeininstellingen en datavolume. De voettekst en healthcheck geven versie 1.3.0 aan.

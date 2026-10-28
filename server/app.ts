@@ -20,6 +20,7 @@ import {
   noteSchema,
   settingsSchema,
 } from "./schema.ts";
+import { registerUserDeletion } from "./delete-user.ts";
 import { registerGames, gameScoreSchema } from "./games.ts";
 import { parseImport } from "./import.ts";
 declare module "fastify" {
@@ -209,6 +210,7 @@ export async function createApp(
     if (status >= 500) app.log.error(e);
   });
   registerGames(app, db);
+  registerUserDeletion(app, db, checkPassword);
   app.get("/api/health", async () => ({ ok: true, version: appVersion }));
   app.get("/api/auth", async (r) => {
     const initialized = !!one("SELECT id FROM users LIMIT 1");

@@ -1962,6 +1962,7 @@ function Admin({
 }) {
   const [tab, setTab] = useState("users"),
     [editUser, setEditUser] = useState<Partial<User> | null>(null),
+    [deleteUser, setDeleteUser] = useState<User | null>(null),
     [settings, setSettings] = useState(data.settings),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -2064,6 +2065,16 @@ function Admin({
                     </td>
                     <td>
                       <button onClick={() => setEditUser(u)}>Bewerken</button>
+                      {u.id !== data.user.id && (
+                        <button
+                          className="danger-text"
+                          title={`Gebruiker ${u.name} verwijderen`}
+                          onClick={() => setDeleteUser(u)}
+                        >
+                          <Trash2 size={15} />
+                          Verwijderen
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -2297,6 +2308,17 @@ function Admin({
           )}
         </section>
       )}
+      {deleteUser && (
+        <DeleteUserModal
+          user={deleteUser}
+          onClose={() => setDeleteUser(null)}
+          onDone={async () => {
+            setDeleteUser(null);
+            await refresh();
+            notify("Gebruiker verwijderd; gedeelde projecten overgedragen");
+          }}
+        />
+      )}
       {editUser && (
         <UserModal
           user={editUser}
@@ -2325,6 +2347,141 @@ function Admin({
         />
       )}
     </>
+  );
+}
+function DeleteUserModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: User;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [preview, setPreview] = useState<any>(null),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [confirmation, setConfirmation] = useState(""),
+    [password, setPassword] = useState("");
+  const load = async () => {
+    setError("");
+    setPreview(null);
+    try {
+      setPreview(await api("/admin/users/" + user.id + "/deletion-preview"));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, [user.id]);
+  return (
+    <Modal title={`Gebruiker ${user.name} verwijderen?`} onClose={onClose} wide>
+      <div className="warning">
+        <AlertTriangle size={22} />
+        <p>
+          Dit verwijdert het account definitief, inclusief alle eigen taken (ook
+          archieftaken), notities en spelscores. Projecten met taken van andere
+          personen blijven behouden en worden overgedragen.
+        </p>
+      </div>
+      {!preview && !error && <p className="muted">Gevolgen berekenen…</p>}
+      {preview && (
+        <>
+          <p>
+            <strong>{preview.tasks} taken</strong>, {preview.notes} notities en{" "}
+            {preview.scores} spelrecords worden verwijderd.
+          </p>
+          <h3>Projecten van {user.name}</h3>
+          {!preview.projects.length && (
+            <p className="muted">
+              Deze gebruiker is geen eigenaar van projecten.
+            </p>
+          )}
+          <ul className="deletion-projects">
+            {preview.projects.map((p: any) => (
+              <li key={p.id}>
+                <strong>{p.name}</strong>
+                <span>
+                  {p.action === "delete"
+                    ? "Wordt verwijderd: geen taken van andere personen."
+                    : `Blijft behouden: ${p.remainingTasks} taken van anderen. Nieuwe eigenaar: ${p.successor.name}${p.successor.active ? "" : " (inactief)"}.`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="muted">
+            Bij meerdere betrokken personen gaat het project naar een actieve
+            medewerker met taken in dat project, op alfabetische volgorde. Ook
+            gearchiveerde taken tellen mee. Als er alleen inactieve betrokkenen
+            zijn, krijgt een van hen het eigenaarschap. Taken van anderen
+            blijven ongewijzigd.
+          </p>
+          <a className="button" href="/api/admin/backup" download>
+            <Download size={15} />
+            Eerst een back-up downloaden
+          </a>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError("");
+              try {
+                await api("/admin/users/" + user.id + "/delete", "POST", {
+                  confirmation,
+                  password,
+                  token: preview.token,
+                });
+                await onDone();
+              } catch (e: any) {
+                setError(e.message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <label className="space-top">
+              Typ VERWIJDEREN om te bevestigen
+              <input
+                required
+                autoComplete="off"
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+              />
+            </label>
+            <label>
+              Je beheerwachtwoord
+              <input
+                required
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <div className="modal-actions">
+              <button type="button" disabled={busy} onClick={onClose}>
+                Annuleren
+              </button>
+              <button type="button" disabled={busy} onClick={() => void load()}>
+                Voorbeeld vernieuwen
+              </button>
+              <button
+                className="danger"
+                disabled={busy || confirmation !== "VERWIJDEREN" || !password}
+              >
+                {busy ? "Bezig…" : "Definitief verwijderen"}
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </Modal>
   );
 }
 function UserModal({
