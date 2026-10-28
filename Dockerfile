@@ -10,6 +10,7 @@ COPY tests ./tests
 RUN pnpm run build && pnpm test
 
 FROM node:24-bookworm-slim AS runtime
+LABEL org.opencontainers.image.version="1.2.1"
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3210 DATA_DIR=/app/data
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@11.25.0 --activate

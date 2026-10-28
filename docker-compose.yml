@@ -1,7 +1,7 @@
 services:
   yaplaning:
     build: .
-    image: yaplaning:local
+    image: yaplaning:1.2.1
     container_name: yaplaning
     restart: unless-stopped
     ports:

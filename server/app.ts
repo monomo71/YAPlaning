@@ -10,7 +10,7 @@ import {
   timingSafeEqual,
   createHash,
 } from "node:crypto";
-import { mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { z } from "zod";
 import {
@@ -27,6 +27,9 @@ declare module "fastify" {
     account: any;
   }
 }
+const appVersion = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).version;
 const now = () => new Date().toISOString();
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 function passwordHash(password: string) {
@@ -206,7 +209,7 @@ export async function createApp(
     if (status >= 500) app.log.error(e);
   });
   registerGames(app, db);
-  app.get("/api/health", async () => ({ ok: true }));
+  app.get("/api/health", async () => ({ ok: true, version: appVersion }));
   app.get("/api/auth", async (r) => {
     const initialized = !!one("SELECT id FROM users LIMIT 1");
     const token = r.cookies.yap_session;

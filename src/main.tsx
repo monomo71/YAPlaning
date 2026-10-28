@@ -49,6 +49,7 @@ import {
   initials,
 } from "./types";
 import "./style.css";
+import packageInfo from "../package.json";
 import { Arcade } from "./games/arcade";
 import type { Game } from "./games/logic";
 import { Projects } from "./projects";
@@ -607,7 +608,9 @@ function App() {
               >
                 ▦
               </button>{" "}
-              <span className="subtle">/ Yet Another Planning</span>
+              <span className="subtle">
+                / Yet Another Planning · v{packageInfo.version}
+              </span>
             </span>
             <span>Een beetje structuur. Een hoop rust.</span>
           </footer>

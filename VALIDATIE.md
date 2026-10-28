@@ -40,3 +40,7 @@ Uitgevoerd op 28 oktober 2026, op macOS met Node.js 24.22.1.
 - `docker-compose.arcane.yml` gebruikt de openbare GitHub-repository op `main` als remote buildcontext en heeft geen lokale bronbestanden nodig.
 - YAML-parsing en validatie tegen het officiële Compose Specification JSON-schema (draft 2020-12) slagen. Poort, volume, omgevingsvariabelen en buildconfiguratie zijn gecontroleerd.
 - Docker/Arcane zelf is op deze ontwikkel-Mac niet beschikbaar; een echte build en deployment op de VM zijn nog niet uitgevoerd.
+
+## Versie 1.2.1 — HTTP-client
+
+Een regressietest reproduceert HTTP 415 bij een lege octet-stream POST. De echte browserclient wordt vervolgens doorgelust naar de API met een gesimuleerde proxy; runner starten, Tetris starten en uitloggen moeten met expliciete JSON slagen. De image-tag, pakketversie, Docker-label en zichtbare voettekst dragen versie 1.2.1.

@@ -37,7 +37,7 @@ Gebruik [`docker-compose.arcane.yml`](docker-compose.arcane.yml) als je de app v
 
 De eerste build downloadt Node.js en de benodigde pakketten en voert de appbuild en tests uit. De server heeft hiervoor toegang nodig tot GitHub, de npm-registry en de containerregistry voor Node.js. De buildtijd is afhankelijk van de VM en de verbinding.
 
-**Bijwerken:** maak via beheer een back-up en kies in Arcane opnieuw **Build & Deploy**. Docker haalt de actuele `main`-broncode op en bouwt de image opnieuw; ongewijzigde bouwlagen kunnen uit de cache komen. `pull_policy: build` laat Compose de image bouwen in plaats van `yaplaning:arcane` op Docker Hub te zoeken. Er is geen achtergrondmonitor: nieuwe commits worden opgehaald wanneer je opnieuw bouwt. Een gewone containerrestart bouwt niet opnieuw.
+**Bijwerken:** maak via beheer een back-up en kies in Arcane opnieuw **Build & Deploy**. Docker haalt de actuele `main`-broncode op en bouwt de image opnieuw; ongewijzigde bouwlagen kunnen uit de cache komen. `pull_policy: build` laat Compose de image bouwen in plaats van `yaplaning:1.2.1` op Docker Hub te zoeken. Er is geen achtergrondmonitor: nieuwe commits worden opgehaald wanneer je opnieuw bouwt. Een gewone containerrestart bouwt niet opnieuw.
 
 Optioneel kun je in Arcane onder Environment Configuration instellen:
 
@@ -172,3 +172,13 @@ De server registreert speelrondes, controleert de verstreken tijd en begrenst sc
 Runner: de drie puntjes in het kaartje onderaan de zijbalk. Tetris: het kleine rasterteken naast YAPlaning in de voettekst. Er staat bewust geen Games-item in het menu.
 
 </details>
+
+## Versie 1.2.1 — games starten achter een proxy
+
+POST-verzoeken zonder expliciete inhoud sturen nu een leeg JSON-object met `Content-Type: application/json`. Dit voorkomt `Unsupported Media Type` bij het starten van beide games wanneer een proxy een ongetypeerde lege POST als octet-stream doorgeeft. Ook uitloggen gebruikt deze afhandeling.
+
+De Compose-files geven de lokale image de versie `yaplaning:1.2.1`. De geïnstalleerde app toont `v1.2.1` in de voettekst; `/api/health` vermeldt eveneens de versie.
+
+**Arcane bijwerken:** vervang in de bestaande Compose-file de `image:`-regel door `image: yaplaning:1.2.1` (of kopieer de nieuwe Compose-file met behoud van je eigen omgevingsvariabelen en datavolume). Kies daarna **Build & Deploy**. Ververs de browser, zo nodig met Ctrl+Shift+R of Cmd+Shift+R. De build haalt de nieuwste code van GitHub op.
+
+Dit is een lokaal gebouwde image, geen op Docker Hub of GHCR gepubliceerde image. Arcane's gewone registry-updatecontrole kan daarom geen nieuwe versie detecteren; gebruik Build & Deploy.

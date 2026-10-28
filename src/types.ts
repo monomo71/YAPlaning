@@ -67,13 +67,15 @@ export async function api<T = any>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
+  method = method.toUpperCase();
+  const payload = body === undefined && method === "POST" ? {} : body;
   const r = await fetch("/api" + path, {
     method,
     headers: {
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
       "X-Yap-Request": "1",
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || "Verzoek mislukt");

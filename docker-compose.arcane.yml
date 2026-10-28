@@ -2,7 +2,7 @@
 # Kies Build & Deploy om GitHub op te halen, de image te bouwen en te starten.
 services:
   yaplaning:
-    image: yaplaning:arcane
+    image: yaplaning:1.2.1
     pull_policy: build
     build:
       context: https://github.com/monomo71/YAPlaning.git#main
