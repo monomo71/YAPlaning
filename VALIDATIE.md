@@ -25,3 +25,12 @@ Uitgevoerd op 28 oktober 2026, op macOS met Node.js 24.22.1.
 - Een oude database zonder projectentabel en zonder projectveld in bestaande taken wordt automatisch uitgebreid zonder de bestaande taken te wijzigen.
 
 - Browsercontrole als medewerker: project aangemaakt, eigen project bewerkt met het kleurenpalet en rechtstreeks een eigen taak aan dat project toegevoegd. Projectkaarten, projectfilter en gekoppelde taken in de agenda zijn gecontroleerd. Ook het uitloggen is gecontroleerd; schrijfverzoeken zonder body sturen geen lege JSON-contentheader meer.
+
+## Pauzegames (versie 1.2)
+
+- Acht tests: bestaande planning/projecten plus haalbaarheid van alle runner-obstakels bij begin-, midden- en topsnelheid; oplopende begrensde snelheid en voldoende tussenruimte.
+- Tetris: zeven-stenenverdeling, verwijderen van vier lijnen, punten, draaien langs de rechterrand en oplopende valsnelheid.
+- Competitie: ingelogde accounts inclusief lezers, top 3, persoonlijke records die niet dalen, gescheiden ranglijsten, weigeren van andermans ronde, herhaald indienen en onmogelijke scores.
+- Scores worden meegenomen in back-upformaat 3; wissen, terugzetten en herstellen van een oudere back-up zonder scores zijn getest.
+
+- Browsercontrole: runner gestart en game-over met opgeslagen persoonlijk record gezien. Tetris gestart, bewogen, gedraaid, gepauzeerd, hervat en uitgespeeld tot game-over; het aparte Tetris-record is opgeslagen en getoond.

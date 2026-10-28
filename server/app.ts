@@ -20,6 +20,7 @@ import {
   noteSchema,
   settingsSchema,
 } from "./schema.ts";
+import { registerGames, gameScoreSchema } from "./games.ts";
 import { parseImport } from "./import.ts";
 declare module "fastify" {
   interface FastifyRequest {
@@ -204,6 +205,7 @@ export async function createApp(
     });
     if (status >= 500) app.log.error(e);
   });
+  registerGames(app, db);
   app.get("/api/health", async () => ({ ok: true }));
   app.get("/api/auth", async (r) => {
     const initialized = !!one("SELECT id FROM users LIMIT 1");
@@ -587,7 +589,8 @@ export async function createApp(
     audit(r, "Back-up gedownload");
     const data = transaction(() => ({
       format: "YAPlaning",
-      version: 2,
+      version: 3,
+      gameScores: q("SELECT * FROM game_scores"),
       projects: q("SELECT * FROM projects"),
       createdAt: now(),
       users: q("SELECT * FROM users"),
@@ -605,7 +608,8 @@ export async function createApp(
   });
   const backupSchema = z.object({
     format: z.literal("YAPlaning"),
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    gameScores: z.array(gameScoreSchema).max(20000).optional(),
     projects: z
       .array(
         z.object({
@@ -682,8 +686,10 @@ export async function createApp(
     if (!checkPassword(input.password, r.account.passwordHash))
       fail(403, "Je huidige wachtwoord is onjuist");
     const b = backupSchema.parse(input.backup);
-    if (b.version === 2 && !b.projects)
+    if (b.version >= 2 && !b.projects)
       fail(400, "Projecten ontbreken in deze back-up");
+    if (b.version === 3 && !b.gameScores)
+      fail(400, "Spelscores ontbreken in deze back-up");
     const projects = (b.projects || []).map((p) => ({
       ...p,
       data: JSON.stringify(projectSchema.parse(JSON.parse(p.data))),
@@ -708,6 +714,13 @@ export async function createApp(
       })
     )
       fail(400, "Ongeldige projecteigenaar in back-up");
+    const gameScores = b.gameScores || [];
+    if (
+      gameScores.some((s) => !ids.has(s.userId)) ||
+      new Set(gameScores.map((s) => s.game + ":" + s.userId)).size !==
+        gameScores.length
+    )
+      fail(400, "Ongeldige spelscores in back-up");
     const tasks = b.tasks.map((t) => {
       const data = taskSchema.parse(JSON.parse(t.data));
       if (data.projectId && !projectIds.has(data.projectId))
@@ -730,7 +743,7 @@ export async function createApp(
       fail(400, "Dubbele records in back-up");
     transaction(() => {
       db.exec(
-        "DELETE FROM sessions; DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM users; DELETE FROM imports; DELETE FROM audit;",
+        "DELETE FROM game_runs; DELETE FROM game_scores; DELETE FROM sessions; DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM users; DELETE FROM imports; DELETE FROM audit;",
       );
       for (const u of b.users)
         run(
@@ -743,6 +756,14 @@ export async function createApp(
           u.color,
           u.passwordHash,
           u.active,
+        );
+      for (const s of gameScores)
+        run(
+          "INSERT INTO game_scores VALUES (?,?,?,?)",
+          s.game,
+          s.userId,
+          s.score,
+          s.updatedAt,
         );
       for (const p of projects)
         run("INSERT INTO projects VALUES (?,?,?)", p.id, p.data, p.updatedAt);
@@ -798,11 +819,11 @@ export async function createApp(
       fail(403, "Je wachtwoord is onjuist");
     transaction(() => {
       db.exec(
-        "DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM imports;",
+        "DELETE FROM game_runs; DELETE FROM game_scores; DELETE FROM tasks; DELETE FROM projects; DELETE FROM notes; DELETE FROM imports;",
       );
       audit(
         r,
-        "Alle projecten, taken, notities en importhistorie gewist; accounts en instellingen behouden",
+        "Alle spelscores, projecten, taken, notities en importhistorie gewist; accounts en instellingen behouden",
       );
     });
     return { ok: true };

@@ -208,7 +208,7 @@ test("Projecten met meerdere eigenaren, rechten, kleuren en back-up/herstel", as
       409,
     );
     const backup = (await req("/admin/backup", "GET", undefined, c)).data;
-    assert.equal(backup.version, 2);
+    assert.equal(backup.version, 3);
     assert.equal(backup.projects.length, 2);
     const invalid = structuredClone(backup);
     invalid.projects = [];

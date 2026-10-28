@@ -39,7 +39,7 @@ Kies Projecten in de zijbalk voor kaarten met voortgang, betrokken medewerkers e
 
 In het taakformulier kies je het project. De agenda gebruikt de projectkleur voor gekoppelde taken en de persoonskleur voor taken zonder project. Naam van de medewerker blijft zichtbaar bij de tijdblokken; projectnaam staat bij grotere blokken en in de tooltip. Met het projectfilter kun je agenda, takenlijst en archief beperken tot één project of taken zonder project.
 
-Bestaande databases worden bij opstarten automatisch uitgebreid; bestaande taken krijgen geen project. Nieuwe back-ups gebruiken formaat 2 en nemen ook de projecten en projecteigenaren mee. Back-ups van formaat 1 blijven herstelbaar. Herstel van een oude back-up vervangt ook alle huidige projecten, omdat die niet in die back-up bestaan. Database legen verwijdert eveneens projecten.
+Bestaande databases worden bij opstarten automatisch uitgebreid; bestaande taken krijgen geen project. Nieuwe back-ups gebruiken formaat 3 en nemen projecten, projecteigenaren en spelscores mee. Back-ups van formaat 1 en 2 blijven herstelbaar. Herstel van een oude back-up vervangt ook alle huidige projecten, omdat die niet in die back-up bestaan. Database legen verwijdert eveneens projecten.
 
 ## Wat zit erin?
 
@@ -55,7 +55,7 @@ Bestaande databases worden bij opstarten automatisch uitgebreid; bestaande taken
 - Excelimport met preview, rapportage van ongeldige regels en bescherming tegen dubbele import.
 - Downloadbare back-up, gevalideerd herstel in één databasetransactie en database legen met wachtwoord en bevestigingstekst. Alle sessies vervallen bij herstel.
 - Activiteitenlog voor beheeracties.
-- Verborgen zwart-wit runnergame: probeer de drie puntjes in het kaartje onderin de zijbalk.
+- Twee verborgen pauzegames met een eigen top 3 en persoonlijk record per ingelogde speler.
 
 ## Thijs' Excel importeren
 
@@ -74,7 +74,7 @@ Beheer → Gegevens & back-up → Back-up downloaden. Dit JSON-bestand bevat all
 
 Herstel vervangt de huidige inhoud en accounts. Maak eerst een back-up, kies het herstelbestand, controleer de aantallen, typ HERSTELLEN en geef je **huidige** beheerwachtwoord op. Log daarna in met een account uit de herstelde back-up. YAPlaning controleert het formaat, de versie, de velden, koppelingen en de aanwezigheid van een actieve superadmin voordat de transactie wordt uitgevoerd. Een mislukte validatie laat de bestaande data staan. Back-ups tot circa 15 MB worden via het venster ondersteund.
 
-Database legen verwijdert projecten, taken, archief, notities en importhistorie; gebruikers, instellingen en activiteitenlog blijven bestaan. Daarvoor zijn LEEGMAKEN en het beheerwachtwoord vereist.
+Database legen verwijdert spelscores, projecten, taken, archief, notities en importhistorie; gebruikers, instellingen en activiteitenlog blijven bestaan. Daarvoor zijn LEEGMAKEN en het beheerwachtwoord vereist.
 
 ## Lokaal ontwikkelen
 
@@ -96,7 +96,7 @@ Open `http://127.0.0.1:3210`. Voor ontwikkelverversing start je `pnpm dev` en in
 
 TypeScript, React, Vite, Fastify en SQLite (de ingebouwde Node.js-driver). Cookies zijn HttpOnly en SameSite Strict, sessietokens staan alleen gehasht in de database. Wachtwoorden zijn gezouten met scrypt. De API controleert rechten, invoer en de herkomst van schrijfverzoeken. Loginverzoeken hebben een aparte limiet. React ontsnapt notitietekst; HTML in notities wordt niet uitgevoerd. Taken en notities hebben een wijzigingsversie om onbedoeld overschrijven bij gelijktijdig bewerken te voorkomen.
 
-De app is bedoeld voor één appcontainer met een lokaal Docker-volume. Deel het SQLite-bestand niet via NFS en start geen meerdere replicas op hetzelfde volume. Bewaar de volume-inhoud bij updates. Nieuwe tabellen worden bij starten automatisch aangemaakt; nieuwe back-ups gebruiken formaat 2; herstel ondersteunt formaat 1 en 2. Het dashboard vernieuwt bij eigen wijzigingen en bij opnieuw laden; live synchronisatie tussen browsers is nog niet ingebouwd. De agenda toont tijden in de lokale browsertijdzone; voor jullie team is Europe/Amsterdam voorzien.
+De app is bedoeld voor één appcontainer met een lokaal Docker-volume. Deel het SQLite-bestand niet via NFS en start geen meerdere replicas op hetzelfde volume. Bewaar de volume-inhoud bij updates. Nieuwe tabellen worden bij starten automatisch aangemaakt; nieuwe back-ups gebruiken formaat 3; herstel ondersteunt formaat 1, 2 en 3. Het dashboard vernieuwt bij eigen wijzigingen en bij opnieuw laden; live synchronisatie tussen browsers is nog niet ingebouwd. De agenda toont tijden in de lokale browsertijdzone; voor jullie team is Europe/Amsterdam voorzien.
 
 ## GitHub
 
@@ -132,3 +132,20 @@ docker run -d --name yaplaning --restart unless-stopped --init -p 3210:3210 -e T
 ```
 
 Gebruik dezelfde poort, omgevingsvariabelen en volumenaam als je huidige installatie wanneer die afwijken van dit voorbeeld. Het volume blijft bij het verwijderen van de container bestaan. Bestaande taken en accounts blijven zo behouden. Start je de installatie met Compose, blijf dan Compose gebruiken en voer na `git pull` opnieuw `docker compose up -d --build` uit.
+
+## Verborgen pauzegames (versie 1.2)
+
+De runner heeft enkele en dubbele cactussen en vogels op twee hoogtes. Spring over lage obstakels; onder hoge vogels kun je gewoon doorlopen. De snelheid stijgt elke 200 punten (ongeveer iedere 20 seconden actieve speeltijd), tot maximaal 500 pixels per seconde. De sprongfysica en tussenruimte zijn ook op die topsnelheid getest. Spatie, pijl omhoog of tikken laat je springen.
+
+De tweede game is Tetris: zeven verschillende stenen in willekeurige reeksen, een vooruitblik op de volgende steen, een landingsschaduw, draaien langs de randen en sneller vallen na elke 10 verwijderde lijnen. Pijltjes bewegen/draaien, spatie laat de steen direct vallen; er zijn ook knoppen voor touchbediening. Lijnen leveren 100/300/500/800 punten maal het level op, plus punten voor handmatig laten zakken.
+
+Beide games hebben een startknop en pauzeknop. P pauzeert; een verborgen browsertab of een venster dat focus verliest pauzeert automatisch. Sluiten beëindigt de huidige ronde zonder een score in te sturen. Na game-over verschijnt de eigen score, het persoonlijk record, de eigen plaats en de top 3 van het team. Er wordt alleen de beste score per account per game bewaard. Bij gelijke scores staat degene die de score het eerst behaalde bovenaan. Ook lezers kunnen spelen; hun planningrechten blijven ongewijzigd. Namen komen altijd uit de ingelogde accounts.
+
+De server registreert speelrondes, controleert de verstreken tijd en begrenst scores. Speelrondes kunnen slechts één keer worden ingediend en verlopen na 24 uur. Het starten van een tweede ronde voor dezelfde game vervangt de eerdere onafgeronde ronde van dat account. Scores staan in SQLite en gaan mee met back-upformaat 3. Lopende rondes worden niet meegenomen. Herstel van een oudere back-up geeft lege ranglijsten; database legen wist ook alle records.
+
+<details>
+<summary>Verstopplekken (spoilers)</summary>
+
+Runner: de drie puntjes in het kaartje onderaan de zijbalk. Tetris: het kleine rasterteken naast YAPlaning in de voettekst. Er staat bewust geen Games-item in het menu.
+
+</details>

@@ -49,6 +49,8 @@ import {
   initials,
 } from "./types";
 import "./style.css";
+import { Arcade } from "./games/arcade";
+import type { Game } from "./games/logic";
 import { Projects } from "./projects";
 
 function Modal({
@@ -153,7 +155,7 @@ function App() {
     [note, setNote] = useState<Partial<Note> | null>(null),
     [toast, setToast] = useState(""),
     [error, setError] = useState(""),
-    [game, setGame] = useState(false),
+    [game, setGame] = useState<Game | null>(null),
     [nav, setNav] = useState(false);
   const refresh = useCallback(async () => {
     try {
@@ -341,7 +343,7 @@ function App() {
               className="egg"
               title="Een kleine pauze"
               aria-label="Een kleine pauze"
-              onClick={() => setGame(true)}
+              onClick={() => setGame("runner")}
             >
               <MoreHorizontal size={19} />
             </button>
@@ -596,7 +598,16 @@ function App() {
           )}
           <footer className="page-footer">
             <span>
-              YAPlaning <span className="subtle">/ Yet Another Planning</span>
+              YAPlaning{" "}
+              <button
+                className="secret-block"
+                aria-label="Een passend moment"
+                title="Een passend moment"
+                onClick={() => setGame("tetris")}
+              >
+                ▦
+              </button>{" "}
+              <span className="subtle">/ Yet Another Planning</span>
             </span>
             <span>Een beetje structuur. Een hoop rust.</span>
           </footer>
@@ -625,7 +636,19 @@ function App() {
           {toast}
         </div>
       )}
-      {game && <Runner onClose={() => setGame(false)} />}
+      {game && (
+        <Modal
+          title={
+            game === "runner"
+              ? "Even uit de planning."
+              : "Alles valt op zijn plek."
+          }
+          onClose={() => setGame(null)}
+          wide
+        >
+          <Arcade game={game} user={me} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -2207,7 +2230,10 @@ function Admin({
                     if (f.size > 15 * 1024 * 1024)
                       throw new Error("Back-up mag maximaal 15 MB zijn");
                     const b = JSON.parse(await f.text());
-                    if (b.format !== "YAPlaning" || ![1, 2].includes(b.version))
+                    if (
+                      b.format !== "YAPlaning" ||
+                      ![1, 2, 3].includes(b.version)
+                    )
                       throw new Error("Geen ondersteunde YAPlaning-back-up");
                     setBackup(b);
                     setDanger("restore");
@@ -2223,7 +2249,7 @@ function Admin({
             <div>
               <h2>Opnieuw beginnen</h2>
               <p>
-                Wis alle projecten, taken, gearchiveerde taken,
+                Wis alle spelscores, projecten, taken, gearchiveerde taken,
                 dashboardnotities en importhistorie. Accounts, instellingen en
                 het activiteitenlog blijven behouden.
               </p>
@@ -2640,7 +2666,7 @@ function DangerModal({
         <AlertTriangle size={22} />
         <p>
           {kind === "clear"
-            ? "Alle projecten, taken, het archief, notities en importhistorie worden gewist. Accounts en instellingen blijven behouden."
+            ? "Alle spelscores, projecten, taken, het archief, notities en importhistorie worden gewist. Accounts en instellingen blijven behouden."
             : "Alle huidige gegevens, accounts en instellingen worden vervangen door de back-up. Je wordt daarna uitgelogd."}
         </p>
       </div>
@@ -2715,102 +2741,6 @@ function DangerModal({
           </button>
         </div>
       </form>
-    </Modal>
-  );
-}
-function Runner({ onClose }: { onClose: () => void }) {
-  const canvas = useRef<HTMLCanvasElement>(null),
-    jump = useRef(() => {}),
-    [score, setScore] = useState(0),
-    [dead, setDead] = useState(false),
-    [key, setKey] = useState(0);
-  useEffect(() => {
-    const ctx = canvas.current?.getContext("2d");
-    if (!ctx) return;
-    let frame = 0,
-      y = 0,
-      v = 0,
-      dist = 0,
-      last = 0,
-      ended = false,
-      obstacles = [640, 930, 1300],
-      raf = 0;
-    setScore(0);
-    setDead(false);
-    const hop = () => {
-      if (!ended && y === 0) v = 12;
-    };
-    jump.current = hop;
-    const handler = (e: KeyboardEvent) => {
-      if (["Space", "ArrowUp"].includes(e.code)) {
-        e.preventDefault();
-        hop();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    const draw = (time: number) => {
-      const delta = Math.min((time - last) / 16.67 || 1, 2);
-      last = time;
-      frame += delta;
-      dist += delta;
-      v -= 0.65 * delta;
-      y = Math.max(0, y + v * delta);
-      if (y === 0) v = 0;
-      ctx.fillStyle = "#fafafa";
-      ctx.fillRect(0, 0, 640, 220);
-      ctx.fillStyle = "#23252b";
-      ctx.fillRect(0, 181, 640, 1);
-      ctx.font = "12px monospace";
-      ctx.fillText("YA RUNNER", 18, 25);
-      ctx.fillText(String(Math.floor(dist)).padStart(5, "0"), 555, 25);
-      ctx.fillRect(62, 145 - y, 24, 34);
-      ctx.fillRect(77, 134 - y, 22, 17);
-      ctx.clearRect(91, 138 - y, 4, 4);
-      ctx.fillRect(51, 151 - y, 14, 7);
-      ctx.fillRect(63 + (Math.floor(frame / 7) % 2) * 13, 178 - y, 6, 5);
-      for (let i = 0; i < obstacles.length; i++) {
-        obstacles[i] -= (4.5 + dist / 800) * delta;
-        if (obstacles[i] < -20)
-          obstacles[i] = Math.max(...obstacles) + 240 + Math.random() * 170;
-        ctx.fillRect(obstacles[i], 151, 13, 30);
-        ctx.fillRect(obstacles[i] - 6, 160, 6, 6);
-        if (obstacles[i] < 90 && obstacles[i] + 13 > 62 && y < 27) {
-          ended = true;
-          setDead(true);
-          setScore(Math.floor(dist));
-        }
-      }
-      if (!ended) raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener("keydown", handler);
-    };
-  }, [key]);
-  return (
-    <Modal title="Even uit de planning." onClose={onClose}>
-      <div className="runner">
-        <Gamepad2 size={26} />
-        <p>Je hebt de geheime pauzeknop gevonden.</p>
-        <canvas
-          ref={canvas}
-          width={640}
-          height={220}
-          onPointerDown={() => jump.current()}
-          aria-label="Zwart-wit runnergame. Spring met spatie, pijl omhoog of door te tikken."
-        />
-        <p className="muted">Spatie / ↑ / tik om te springen</p>
-        {dead && (
-          <>
-            <strong>Mooi gelopen! Score: {score}</strong>
-            <button className="primary" onClick={() => setKey(key + 1)}>
-              <RotateCcw size={16} />
-              Nog een rondje
-            </button>
-          </>
-        )}
-      </div>
     </Modal>
   );
 }

@@ -2330,3 +2330,194 @@ progress::-webkit-progress-value {
 .project-palette button[aria-pressed="true"] {
   box-shadow: 0 0 0 2px #585d85;
 }
+.secret-block {
+  border: 0;
+  background: none;
+  padding: 0 3px;
+  color: #a6aabc;
+  font-size: 10px;
+  vertical-align: baseline;
+}
+.secret-block:hover {
+  color: #6669c7;
+  background: #eeeef9;
+}
+.arcade {
+  text-align: center;
+}
+.arcade-intro {
+  font-size: 12px;
+  color: #8992a6;
+  margin-bottom: 18px;
+}
+.runner-canvas {
+  width: 100%;
+  border: 1px solid #eceef3;
+  border-radius: 10px;
+  background: #fafafa;
+  touch-action: manipulation;
+  display: block;
+  min-height: 150px;
+}
+.game-start {
+  padding: 18px;
+}
+.game-start p {
+  color: #8992a6;
+  font-size: 12px;
+}
+.game-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+.game-controls button {
+  touch-action: manipulation;
+  min-width: 70px;
+}
+.arcade-results {
+  margin: 20px auto 0;
+  border-top: 1px solid #eceef3;
+  padding-top: 22px;
+  max-width: 440px;
+}
+.arcade-results h3 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 18px;
+  color: #5c647c;
+}
+.leaderboard-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 12px;
+  font-size: 12px;
+}
+.leaderboard-title small {
+  font-size: 10px;
+  color: #9ea5b7;
+}
+.leaderboard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.leaderboard li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #eceef5;
+  border-radius: 8px;
+  margin: 7px 0;
+  padding: 12px;
+  text-align: left;
+  font-size: 12px;
+}
+.leaderboard li.you {
+  border-color: #cbccef;
+  background: #f4f4fd;
+}
+.leaderboard li strong {
+  flex: 1;
+  font-weight: 500;
+}
+.leaderboard li b {
+  font-variant-numeric: tabular-nums;
+  color: #727b95;
+}
+.medal {
+  font-size: 18px;
+}
+.personal-record {
+  font-size: 12px;
+  color: #8a93a8;
+}
+.arcade-results .error button {
+  display: block;
+  margin: 10px auto 0;
+}
+.tetris-layout {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+}
+.tetris-canvas {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  background: #f7f8fc;
+  border-radius: 8px;
+  border: 1px solid #e9ecf4;
+}
+.tetris-layout > div:first-child {
+  max-width: 360px;
+  flex: 1;
+  min-width: 0;
+}
+.tetris-layout .full {
+  margin-top: 15px;
+}
+.tetris-sidebar {
+  width: 145px;
+  flex-shrink: 0;
+}
+.tetris-sidebar p {
+  font-size: 11px;
+  color: #8992a6;
+  line-height: 1.9;
+}
+.game-stat {
+  background: #f5f5fb;
+  border-radius: 9px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.game-stat small {
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  color: #a0a8bc;
+  display: block;
+}
+.game-stat strong {
+  display: block;
+  font-size: 23px;
+  margin-top: 8px;
+  font-weight: 500;
+  color: #6f7692;
+}
+.tetris-buttons button {
+  min-width: 45px;
+}
+@media (max-width: 520px) {
+  .tetris-sidebar {
+    width: 100px;
+  }
+  .tetris-layout {
+    gap: 12px;
+  }
+  .tetris-sidebar p {
+    font-size: 9px;
+  }
+  .game-stat {
+    padding: 10px;
+  }
+  .tetris-buttons {
+    gap: 7px;
+  }
+  .tetris-buttons button {
+    min-width: 40px;
+    padding: 9px;
+  }
+  .leaderboard-title {
+    font-size: 11px;
+  }
+  .arcade-results {
+    margin-top: 15px;
+  }
+}
